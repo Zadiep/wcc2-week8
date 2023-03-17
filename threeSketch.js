@@ -1,21 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
-import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
-import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
+import Stats from 'three/addons/libs/stats.module.js';
+
 
 let scene, camera, renderer, controls;
 let stats, clock; // helpers
-let light, pointLight;
+let light;
 let cubes = [];
 let centerPoint;
 let Noise;
-let cubeNum;
+let cubeNum, sphereNum;
 let spheres = [];
-let phiS;
-let phiL;
-let thetaS;
-let thetaL;
 
 init();
 animate();
@@ -25,6 +21,8 @@ function init() {
     Noise = new ImprovedNoise();
 
     scene = new THREE.Scene();
+
+    //
     camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.5, 800 );
 
     renderer = new THREE.WebGLRenderer();
@@ -36,6 +34,7 @@ function init() {
 
     //controls.update() must be called after any manual changes to the camera's transform
     camera.position.set(20,0,0); //always looks at center
+    camera.lookAt(scene.position);
     controls.update();
     
 
@@ -44,70 +43,49 @@ function init() {
     light = new THREE.AmbientLight(0x404040,1); // soft white light
     scene.add( light );
 
-    // pointLight = new THREE.PointLight( 0x404040, 200, 50 , 2 );
-    // pointLight.position.set( 500, 200, 300 );
-    // scene.add( pointLight );
-
-    const directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
-    const helper = new THREE.DirectionalLightHelper( directionLight, 5 );
-    directionalLight.position.set(5,5,5);
-    directionalLight.castShadow = true; 
-    scene.add( helper );
-
-
-    const spotLight =  new THREE.SpotLight(0xffffff,0.5);
-    spotLight.position.set(10,10,10);
+    //did not work, wait to visualize
+    const spotLight = new THREE.SpotLight( 0xffffff );
+    spotLight.position.set( 100, 1000, 100 );
+    
     spotLight.castShadow = true;
-    spotLight.shadow.radius = 20;
-    spotLight.shadow.mapSize.set(4096,4096);
     
-    scene.add(spotLight.target );
+    spotLight.shadow.mapSize.width = 1024;
+    spotLight.shadow.mapSize.height = 1024;
     
+    spotLight.shadow.camera.near = 500;
+    spotLight.shadow.camera.far = 400;
+    spotLight.shadow.camera.fov = 30;
+    
+    scene.add( spotLight );
+    //
 
     centerPoint = new THREE.Vector3( 0, 0, 0 );
+
+    const Sgeometry = new THREE.SphereGeometry(2,20,10);
+    const Smaterial = new THREE.MeshNormalMaterial( { color: 0xffffff } );
+    // const Smaterial = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
    
-    const geometry = new THREE.BoxGeometry( 1, 1.5, 1 );
-    const material = new THREE.MeshNormalMaterial();
-    material.fog = false;
-    material.opacity = 1;
-    material.alphaTest = 0;
-    // material.wireframe = true;
-    // material.wireframeLinewidth = 15;
-   
-    
-    // phiS = 2;
-    // phiL = 4;
-    // thetaS = 1;
-    // thetaL = 3;
-    
-    phiS = 1;
-    phiL = 4;
-    thetaS = 1;
-    thetaL = 3;
+    //create Spheres
+    sphereNum = 6;
+    for (let x = -sphereNum; x <= sphereNum; x += 0.2) {
+        for (let y = -sphereNum; y <= sphereNum; y += 0.2) {
+            for (let z = -sphereNum; z <= sphereNum; z += 1) {
 
-    const Sgeometry = new THREE.SphereGeometry(10, 60, 16, phiS, phiL, thetaS, thetaL);
-    const Smaterial = new THREE.MeshNormalMaterial( { color: 0xffff00 } );
-    const sphere = new THREE.Mesh (Sgeometry,Smaterial);
-    scene.add(sphere);
-    spheres.push(sphere);
+        const sphere = new THREE.Mesh (Sgeometry,Smaterial);
 
-    spotLight.target = sphere;
+        sphere.position.x = x;
+        sphere.position.y = y;
+        sphere.position.z = z;
+        
+        scene.add(sphere);
+        spheres.push(sphere);
 
-    //create cubes
-    cubeNum = 10;
-    for (let x = -cubeNum; x <= cubeNum; x += 2) {
-        for (let z = -cubeNum; z <= cubeNum; z += 2) {
-
-            const cube = new THREE.Mesh( geometry, material ); 
-
-            cube.position.x = x;
-            cube.position.y = 1;
-            cube.position.z = z;
-            
-            scene.add(cube);
-            cubes.push(cube);
         }
     }
+    }
+
+    
+
 
     //help us animate
     clock = new THREE.Clock();
@@ -128,24 +106,24 @@ function init() {
 
 function animate() {
     renderer.setAnimationLoop( render );
+    
 }
 
 function render(){
     stats.begin();
 
-    for (let i = 0; i < cubes.length; i++) {
-        let cube = cubes[i];
-        let distance = cube.position.distanceTo(centerPoint);
+    let change = clock.getElapsedTime();
+
+    for (let i = 0; i < spheres.length; i++) {
+        let sphere = spheres[i];
+        let distance = sphere.position.distanceTo(centerPoint);
         let sine = Math.sin(distance + clock.getElapsedTime()*5);//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math
-        let height = THREE.MathUtils.mapLinear(sine,-1,1,1,5);//https://threejs.org/docs/?q=Math#api/en/math/MathUtils
-        let change = clock.getElapsedTime();
-        let n = Noise.noise(cube.position.x*change*0.3,cube.position.y*0.05,cube.position.z*change*0.2);
-        cube.position.y = 1+n*20;
-        cube.scale.y = sine*2+3;
-        phiS = THREE.MathUtils.clamp(sine,-1,1,1,2);
+        let height = THREE.MathUtils.mapLinear(sine,-1,1,1,2);//https://threejs.org/docs/?q=Math#api/en/math/MathUtils
+        let n = Noise.noise(sphere.position.x*change*0.1,sphere.position.y*0.05,sphere.position.z*0.2);
+        // sphere.position.y = 0+n*1.5;
+        sphere.position.y = 0+height*1.5;
     }
-  
-    
+     
 
 	stats.end();
    
@@ -164,4 +142,5 @@ function onWindowResize() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 }
+
 
