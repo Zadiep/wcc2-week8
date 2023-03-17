@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
-
+import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
+import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
 
 let scene, camera, renderer, controls;
 let stats, clock; // helpers
@@ -39,21 +40,37 @@ function init() {
     
 
     //set up our scene
-
+    //surround light
     light = new THREE.AmbientLight(0x404040,1); // soft white light
     scene.add( light );
-    pointLight = new THREE.PointLight( 0x404040, 200, 50 , 2 );
-    pointLight.position.set( 500, 200, 300 );
-    scene.add( pointLight );
 
-    // const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
-    // scene.add( directionalLight );
+    // pointLight = new THREE.PointLight( 0x404040, 200, 50 , 2 );
+    // pointLight.position.set( 500, 200, 300 );
+    // scene.add( pointLight );
+
+    const directionalLight = new THREE.DirectionalLight( 0xffffff, 1 );
+    const helper = new THREE.DirectionalLightHelper( directionLight, 5 );
+    directionalLight.position.set(5,5,5);
+    directionalLight.castShadow = true; 
+    scene.add( helper );
+
+
+    const spotLight =  new THREE.SpotLight(0xffffff,0.5);
+    spotLight.position.set(10,10,10);
+    spotLight.castShadow = true;
+    spotLight.shadow.radius = 20;
+    spotLight.shadow.mapSize.set(4096,4096);
+    
+    scene.add(spotLight.target );
     
 
     centerPoint = new THREE.Vector3( 0, 0, 0 );
    
     const geometry = new THREE.BoxGeometry( 1, 1.5, 1 );
     const material = new THREE.MeshNormalMaterial();
+    material.fog = false;
+    material.opacity = 1;
+    material.alphaTest = 0;
     // material.wireframe = true;
     // material.wireframeLinewidth = 15;
    
@@ -68,11 +85,13 @@ function init() {
     thetaS = 1;
     thetaL = 3;
 
-    const Sgeometry = new THREE.SphereGeometry(10, 60, 16,phiS, phiL, thetaS, thetaL);
+    const Sgeometry = new THREE.SphereGeometry(10, 60, 16, phiS, phiL, thetaS, thetaL);
     const Smaterial = new THREE.MeshNormalMaterial( { color: 0xffff00 } );
     const sphere = new THREE.Mesh (Sgeometry,Smaterial);
     scene.add(sphere);
     spheres.push(sphere);
+
+    spotLight.target = sphere;
 
     //create cubes
     cubeNum = 10;
